@@ -125,11 +125,18 @@ class ExtractedParameters:
     demand_scenario: DemandScenario = DemandScenario.UNKNOWN
     constraint_labels: list[ConstraintLabel] = field(default_factory=list)
     loan_amount: float | None = None
+    loan_amount_upper_limit: float | None = None
     loan_term_months: int | None = None
     interest_rate: float | None = None
+    subsidy_rate: float | None = None
+    effective_rate: float | None = None
     collateral_required: bool | None = None
+    collateral_requirement_text: str | None = None
     guarantee_required: bool | None = None
+    guarantee_requirement_text: str | None = None
     target_entities: list[str] = field(default_factory=list)
+    usage_restrictions: list[str] = field(default_factory=list)
+    repayment_constraints: list[str] = field(default_factory=list)
     raw_slots: dict[str, Any] = field(default_factory=dict)
 
 
