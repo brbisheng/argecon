@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import re
-import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
-from xml.etree import ElementTree
 
 from src.common.enums import FileType, ParseStatus, TextQualityFlag
 from src.common.schemas import ManifestRecord, ParseResult, SourceDocument
+from src.parsers import parse_docx
 
 ParserFunc = Callable[[ManifestRecord], ParseResult]
-WORD_NAMESPACE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 PDF_TEXT_PATTERN = re.compile(rb"\(([^()]*)\)")
 
 
@@ -58,42 +56,7 @@ def parse_document(record: ManifestRecord, registry: ParserRegistry | None = Non
 
 
 def _parse_docx(record: ManifestRecord) -> ParseResult:
-    path = Path(record.source_path)
-    paragraphs: list[str] = []
-
-    with zipfile.ZipFile(path) as archive:
-        with archive.open("word/document.xml") as document_xml:
-            root = ElementTree.parse(document_xml).getroot()
-
-    for paragraph in root.iterfind(f".//{WORD_NAMESPACE}p"):
-        texts = [node.text or "" for node in paragraph.iterfind(f".//{WORD_NAMESPACE}t")]
-        merged = "".join(texts).strip()
-        if merged:
-            paragraphs.append(merged)
-
-    raw_text = "\n".join(paragraphs)
-    status = ParseStatus.SUCCESS if raw_text.strip() else ParseStatus.PARTIAL
-    quality = TextQualityFlag.CLEAN if raw_text.strip() else TextQualityFlag.EMPTY
-    warnings = [] if raw_text.strip() else ["DOCX parsed but no text content was extracted."]
-
-    document = SourceDocument(
-        doc_id=record.doc_id,
-        region=record.region,
-        source_path=record.source_path,
-        file_name=record.file_name,
-        file_type=record.file_type,
-        title=paragraphs[0] if paragraphs else path.stem,
-        raw_text=raw_text,
-        paragraphs=paragraphs,
-        parse_status=status,
-        parse_error=None,
-        source_format_confidence=0.95,
-        text_quality_flag=quality,
-        needs_manual_review=status is not ParseStatus.SUCCESS,
-        ocr_needed=False,
-        ingestion_time=datetime.now(timezone.utc),
-    )
-    return ParseResult(document=document, success=status is ParseStatus.SUCCESS, warnings=warnings, parser_name="docx_parser")
+    return parse_docx(record)
 
 
 def _parse_text(record: ManifestRecord) -> ParseResult:
