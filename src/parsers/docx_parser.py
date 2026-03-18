@@ -5,12 +5,12 @@ from __future__ import annotations
 import re
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree
 
 from src.common.enums import ParseStatus, TextQualityFlag
-from src.common.schemas import ManifestRecord, ParseResult, SourceDocument
+from src.parsers.base import ParseDiagnostics, build_parse_result
+from src.common.schemas import ManifestRecord, ParseResult
 
 WORD_NAMESPACE = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 DRAWING_NAMESPACE = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
@@ -218,28 +218,21 @@ def _build_result(
     warnings: list[str],
     ocr_needed: bool = False,
 ) -> ParseResult:
-    document = SourceDocument(
-        doc_id=record.doc_id,
-        region=record.region,
-        source_path=record.source_path,
-        file_name=record.file_name,
-        file_type=record.file_type,
+    return build_parse_result(
+        record=record,
+        parser_name="docx_parser",
         title=title,
         raw_text=raw_text,
         paragraphs=paragraphs,
-        parse_status=status,
-        parse_error=parse_error,
-        source_format_confidence=source_format_confidence,
-        text_quality_flag=text_quality_flag,
-        needs_manual_review=needs_manual_review,
-        ocr_needed=ocr_needed,
-        ingestion_time=datetime.now(timezone.utc),
-    )
-    return ParseResult(
-        document=document,
-        success=status is ParseStatus.SUCCESS,
-        warnings=warnings,
-        parser_name="docx_parser",
+        diagnostics=ParseDiagnostics(
+            status=status,
+            parse_error=parse_error,
+            text_quality_flag=text_quality_flag,
+            source_format_confidence=source_format_confidence,
+            needs_manual_review=needs_manual_review,
+            ocr_needed=ocr_needed,
+            warnings=warnings,
+        ),
     )
 
 
