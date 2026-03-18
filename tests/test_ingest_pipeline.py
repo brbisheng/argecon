@@ -173,3 +173,76 @@ def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_p
     assert report["parse_failed"] == 1
     assert report["parsed_successfully"] == 1
     assert report["errors"]
+
+
+def test_txt_parser_segments_on_blank_lines_and_returns_shared_document_shape(tmp_path: Path) -> None:
+    source = tmp_path / "fj" / "notice.txt"
+    source.parent.mkdir(parents=True)
+    source.write_text("主标题\n\n第一段第一句。\n第一段第二句。\n\n第二段。\n", encoding="utf-8")
+    record = scan_directory(tmp_path).records[0]
+
+    result = parse_document(record, registry=build_default_registry())
+
+    assert result.success is True
+    assert result.parser_name == "txt_parser"
+    assert result.document.title == "主标题"
+    assert result.document.paragraphs == ["主标题", "第一段第一句。\n第一段第二句。", "第二段。"]
+    assert result.document.raw_text.startswith("主标题")
+    assert result.document.parse_status is ParseStatus.SUCCESS
+
+
+def test_md_parser_splits_headings_and_paragraphs_into_shared_document_shape(tmp_path: Path) -> None:
+    source = tmp_path / "fj" / "guide.md"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "# 申报指南\n\n这里是导语。\n\n## 申请条件\n需要营业执照。\n\n## 材料清单\n身份证明。\n",
+        encoding="utf-8",
+    )
+    record = scan_directory(tmp_path).records[0]
+
+    result = parse_document(record, registry=build_default_registry())
+
+    assert result.success is True
+    assert result.parser_name == "md_parser"
+    assert result.document.title == "申报指南"
+    assert result.document.paragraphs == [
+        "# 申报指南",
+        "这里是导语。",
+        "## 申请条件",
+        "需要营业执照。",
+        "## 材料清单",
+        "身份证明。",
+    ]
+    assert result.document.parse_status is ParseStatus.SUCCESS
+
+
+def test_pdf_parser_flags_sparse_extractable_text_for_ocr_review(tmp_path: Path) -> None:
+    source = tmp_path / "fj" / "scan_like.pdf"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"%PDF-1.4\n1 0 obj\n(Hi)\n(OK)\nendobj\n")
+    record = scan_directory(tmp_path).records[0]
+
+    result = parse_document(record, registry=build_default_registry())
+
+    assert result.success is False
+    assert result.parser_name == "pdf_parser"
+    assert result.document.parse_status is ParseStatus.PARTIAL
+    assert result.document.ocr_needed is True
+    assert result.document.needs_manual_review is True
+    assert result.document.paragraphs == ["Hi", "OK"]
+
+
+def test_image_parser_stub_returns_skipped_status_without_crashing_pipeline(tmp_path: Path) -> None:
+    source = tmp_path / "fj" / "photo.png"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"\x89PNG\r\n\x1a\n")
+    record = scan_directory(tmp_path).records[0]
+
+    result = parse_document(record, registry=build_default_registry())
+
+    assert result.success is False
+    assert result.parser_name == "image_parser"
+    assert result.document.parse_status is ParseStatus.SKIPPED
+    assert result.document.ocr_needed is True
+    assert result.document.needs_manual_review is True
+    assert result.document.raw_text == ""
