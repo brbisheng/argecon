@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 
 from src.common.enums import ParseStatus
+from src.common.io_utils import write_json
 from src.common.schemas import IngestionReport, ManifestRecord, ParseResult
-from src.ingest.manifest import _to_jsonable
 
 
 class ReportBuilder:
@@ -46,11 +45,7 @@ class ReportBuilder:
 def write_report(report: IngestionReport, output_path: str | Path) -> None:
     """Persist the ingestion report as a JSON document."""
 
-    destination = Path(output_path)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("w", encoding="utf-8") as file_obj:
-        json.dump(_to_jsonable(report), file_obj, ensure_ascii=False, indent=2)
-        file_obj.write("\n")
+    write_json(report, output_path)
 
 
 __all__ = ["ReportBuilder", "write_report"]

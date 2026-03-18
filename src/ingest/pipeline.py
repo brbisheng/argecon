@@ -7,10 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.common.enums import ParseStatus
+from src.common.io_utils import write_jsonl
 from src.common.schemas import ChunkRecord, ManifestRecord, ParseResult, SourceDocument
 from src.chunking.chunk_pipeline import build_default_chunking_config, chunk_document
 from src.ingest.dispatcher import ParserRegistry, parse_document
-from src.ingest.manifest import write_jsonl, write_manifest
+from src.ingest.manifest import write_manifest
 from src.ingest.report import ReportBuilder, write_report
 from src.ingest.scanner import ScanResult, scan_directory
 
@@ -88,7 +89,7 @@ def run_ingestion_pipeline(
     write_manifest(manifest_records, artifacts.manifest_path)
     write_jsonl(documents, artifacts.documents_path)
     write_jsonl(chunks, artifacts.chunks_path)
-    write_jsonl(chunks, artifacts.kb_chunks_path)
+    write_jsonl(_build_kb_chunks(chunks), artifacts.kb_chunks_path)
     report = report_builder.finalize(datetime.now(timezone.utc))
     write_report(report, artifacts.report_path)
 
@@ -103,6 +104,28 @@ def run_ingestion_pipeline(
     )
 
 
+
+def _build_kb_chunks(chunks: list[ChunkRecord]) -> list[dict[str, object]]:
+    """Derive KB-ready chunk payloads directly from canonical chunk outputs."""
+
+    kb_chunks: list[dict[str, object]] = []
+    for chunk in chunks:
+        kb_chunks.append(
+            {
+                "chunk_id": chunk.chunk_id,
+                "doc_id": chunk.doc_id,
+                "region": chunk.region,
+                "source_title": chunk.source_title,
+                "source_path": chunk.metadata.get("source_path"),
+                "chunk_index": chunk.chunk_index,
+                "chunk_text": chunk.chunk_text,
+                "section_title": chunk.section_title,
+                "page_no": chunk.page_no,
+                "paragraph_range": chunk.paragraph_range,
+                "metadata": dict(chunk.metadata),
+            }
+        )
+    return kb_chunks
 
 
 def _build_artifacts(output_dir: str | Path) -> PipelineArtifacts:

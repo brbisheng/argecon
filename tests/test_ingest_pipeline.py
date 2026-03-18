@@ -5,6 +5,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from src.common.enums import FileType, ParseStatus
+from src.common.io_utils import JsonlWriter, append_jsonl_record, write_json, write_jsonl
 from src.ingest.dispatcher import build_default_registry, parse_document
 from src.ingest.pipeline import run_ingestion_pipeline
 from src.ingest.scanner import infer_region, scan_directory
@@ -65,6 +66,23 @@ def _write_docx(path: Path, document_xml: str = DOCX_XML) -> None:
         archive.writestr("_rels/.rels", RELS_XML)
         archive.writestr("word/document.xml", document_xml)
         archive.writestr("word/_rels/document.xml.rels", DOC_RELS_XML)
+
+
+
+def test_io_utils_write_json_and_jsonl_support_batch_and_incremental_modes(tmp_path: Path) -> None:
+    nested_dir = tmp_path / "nested" / "output"
+    json_path = nested_dir / "report.json"
+    jsonl_path = nested_dir / "records.jsonl"
+
+    write_json({"message": "你好", "count": 2}, json_path)
+    write_jsonl([{"id": 1}, {"id": 2}], jsonl_path)
+    append_jsonl_record({"id": 3}, jsonl_path)
+    with JsonlWriter(jsonl_path, append=True) as writer:
+        writer.write({"id": 4})
+        writer.write_many([{"id": 5}, {"id": 6}])
+
+    assert json.loads(json_path.read_text(encoding="utf-8"))["message"] == "你好"
+    assert [json.loads(line)["id"] for line in jsonl_path.read_text(encoding="utf-8").splitlines()] == [1, 2, 3, 4, 5, 6]
 
 
 def test_scan_directory_infers_regions_from_current_layout(tmp_path: Path) -> None:
@@ -163,16 +181,33 @@ def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_p
     manifest_lines = (output_dir / "manifest.jsonl").read_text(encoding="utf-8").strip().splitlines()
     document_lines = (output_dir / "documents.jsonl").read_text(encoding="utf-8").strip().splitlines()
     chunk_lines = (output_dir / "chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    kb_chunk_lines = (output_dir / "kb_chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
     report = json.loads((output_dir / "ingestion_report.json").read_text(encoding="utf-8"))
+
+    documents = [json.loads(line) for line in document_lines]
+    chunks = [json.loads(line) for line in chunk_lines]
+    kb_chunks = [json.loads(line) for line in kb_chunk_lines]
+
+    document_index = {document["doc_id"]: document for document in documents}
 
     assert result.report_path == output_dir / "ingestion_report.json"
     assert len(manifest_lines) == 2
     assert len(document_lines) == 2
     assert len(chunk_lines) >= 1
+    assert len(kb_chunk_lines) == len(chunk_lines)
     assert report["total_files"] == 2
     assert report["parse_failed"] == 1
     assert report["parsed_successfully"] == 1
     assert report["errors"]
+    for document in documents:
+        assert document["source_path"]
+        assert document["region"]
+    for chunk, kb_chunk in zip(chunks, kb_chunks, strict=True):
+        assert chunk["doc_id"] in document_index
+        assert document_index[chunk["doc_id"]]["source_path"] == chunk["metadata"]["source_path"]
+        assert document_index[chunk["doc_id"]]["region"] == chunk["region"]
+        assert kb_chunk["chunk_id"] == chunk["chunk_id"]
+        assert kb_chunk["source_path"] == chunk["metadata"]["source_path"]
 
 
 def test_txt_parser_segments_on_blank_lines_and_returns_shared_document_shape(tmp_path: Path) -> None:

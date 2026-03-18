@@ -1,6 +1,7 @@
 """Common schemas, constants, IO helpers, and logging utilities."""
 
 from .enums import ConstraintLabel, DemandScenario, FileType, ParseStatus, TextQualityFlag
+from .io_utils import JsonlWriter, append_jsonl_record, write_json, write_jsonl
 from .schemas import (
     ChunkRecord,
     EconResult,
@@ -22,6 +23,7 @@ __all__ = [
     "EconResult",
     "ExtractedParameters",
     "FileType",
+    "JsonlWriter",
     "IngestionReport",
     "ManifestRecord",
     "ParseResult",
@@ -29,7 +31,10 @@ __all__ = [
     "QueryResponse",
     "RetrievedChunk",
     "SelectedEvidence",
+    "append_jsonl_record",
     "SessionState",
     "SourceDocument",
     "TextQualityFlag",
+    "write_json",
+    "write_jsonl",
 ]
