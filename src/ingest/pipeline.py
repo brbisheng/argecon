@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.common.enums import ParseStatus
 from src.common.schemas import ChunkRecord, ManifestRecord, ParseResult, SourceDocument
+from src.chunking.chunk_pipeline import build_default_chunking_config, chunk_document
 from src.ingest.dispatcher import ParserRegistry, parse_document
 from src.ingest.manifest import write_jsonl, write_manifest
 from src.ingest.report import ReportBuilder, write_report
@@ -76,7 +76,10 @@ def run_ingestion_pipeline(
 
         document_chunks = []
         if result.document.parse_status is not ParseStatus.FAILED:
-            document_chunks = chunk_document(result.document, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            document_chunks = chunk_document(
+                result.document,
+                config=build_default_chunking_config(chunk_size=chunk_size, chunk_overlap=chunk_overlap),
+            )
             chunks.extend(document_chunks)
 
         report_builder.record_result(result, chunk_count=len(document_chunks))
@@ -100,48 +103,6 @@ def run_ingestion_pipeline(
     )
 
 
-def chunk_document(document: SourceDocument, chunk_size: int = 800, chunk_overlap: int = 100) -> list[ChunkRecord]:
-    """Split a normalized document into retrieval chunks."""
-
-    if not document.raw_text.strip():
-        return []
-
-    if chunk_overlap >= chunk_size:
-        raise ValueError("chunk_overlap must be smaller than chunk_size")
-
-    chunks: list[ChunkRecord] = []
-    text = document.raw_text.strip()
-    start = 0
-    chunk_index = 0
-    while start < len(text):
-        end = min(len(text), start + chunk_size)
-        chunk_text = text[start:end].strip()
-        if chunk_text:
-            chunks.append(
-                ChunkRecord(
-                    chunk_id=_build_chunk_id(document.doc_id, chunk_index, chunk_text),
-                    doc_id=document.doc_id,
-                    region=document.region,
-                    source_title=document.title or document.file_name,
-                    chunk_text=chunk_text,
-                    chunk_index=chunk_index,
-                    metadata={
-                        "source_path": document.source_path,
-                        "file_name": document.file_name,
-                        "parse_status": document.parse_status.value,
-                    },
-                )
-            )
-            chunk_index += 1
-        if end >= len(text):
-            break
-        start = max(0, end - chunk_overlap)
-    return chunks
-
-
-def _build_chunk_id(doc_id: str, chunk_index: int, chunk_text: str) -> str:
-    digest = hashlib.sha1(chunk_text.encode("utf-8")).hexdigest()[:10]
-    return f"{doc_id}:chunk:{chunk_index}:{digest}"
 
 
 def _build_artifacts(output_dir: str | Path) -> PipelineArtifacts:
@@ -171,4 +132,4 @@ def _replace_manifest_record(records: list[ManifestRecord], updated_record: Mani
             return
 
 
-__all__ = ["IngestionRunResult", "PipelineArtifacts", "chunk_document", "run_ingestion_pipeline"]
+__all__ = ["IngestionRunResult", "PipelineArtifacts", "run_ingestion_pipeline"]
