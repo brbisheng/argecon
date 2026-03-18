@@ -6,7 +6,7 @@ import json
 import math
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -125,6 +125,32 @@ def load_chunk_index(
     return ChunkIndexStore(data_dir=data_dir).build_index(chunk_path=chunk_path)
 
 
+def serialize_chunk_index(index: ChunkIndex) -> dict[str, Any]:
+    """Convert a built chunk index into a stable JSON-serializable payload."""
+
+    return {
+        "metadata": dict(index.metadata),
+        "chunks": [asdict(chunk) for chunk in index.chunks],
+        "tokenized_chunks": [list(tokens) for tokens in index.tokenized_chunks],
+        "term_frequencies": [dict(counter) for counter in index.term_frequencies],
+        "document_frequencies": dict(index.document_frequencies),
+        "document_lengths": list(index.document_lengths),
+        "average_document_length": index.average_document_length,
+    }
+
+
+def save_chunk_index(index: ChunkIndex, output_path: str | Path) -> Path:
+    """Persist a built chunk index as JSON for offline inspection/debugging."""
+
+    destination = Path(output_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(serialize_chunk_index(index), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return destination
+
+
 def tokenize_for_retrieval(text: str) -> list[str]:
     """Produce lightweight lexical tokens that work for Chinese and Latin text."""
 
@@ -212,4 +238,11 @@ def _default_data_dir() -> Path:
     return Path(__file__).resolve().parents[2] / "data" / "processed"
 
 
-__all__ = ["ChunkIndex", "ChunkIndexStore", "load_chunk_index", "tokenize_for_retrieval"]
+__all__ = [
+    "ChunkIndex",
+    "ChunkIndexStore",
+    "load_chunk_index",
+    "save_chunk_index",
+    "serialize_chunk_index",
+    "tokenize_for_retrieval",
+]
