@@ -163,11 +163,29 @@ class SessionState:
     current_region: str | None = None
     normalized_query: str | None = None
     demand_scenario: DemandScenario = DemandScenario.UNKNOWN
-    extracted_parameters: ExtractedParameters | None = None
-    retrieved_chunks: list[RetrievedChunk] = field(default_factory=list)
-    selected_evidence: list[SelectedEvidence] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
+    purpose: str | None = None
+    amount: str | None = None
+    crop_or_activity: str | None = None
+    duration: str | None = None
+    existing_loan: bool | None = None
+    cooperative: bool | None = None
+    guarantor: bool | None = None
+    collateral: bool | None = None
     updated_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def apply_updates(self, **updates: Any) -> None:
+        """Apply non-null slot updates in place and refresh the timestamp."""
+
+        changed = False
+        for field_name, value in updates.items():
+            if value is None or not hasattr(self, field_name):
+                continue
+            if getattr(self, field_name) != value:
+                setattr(self, field_name, value)
+                changed = True
+        if changed:
+            self.updated_at = datetime.utcnow()
 
 
 @dataclass(slots=True)

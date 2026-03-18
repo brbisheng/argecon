@@ -26,7 +26,7 @@ def _chunk(chunk_id: str, text: str, *, title: str = "政策A", score: float = 0
 
 
 def _session() -> SessionState:
-    return SessionState(session_id="sess-1", current_region="beijing")
+    return SessionState(session_id="sess-1", current_region="beijing", purpose="经营周转", existing_loan=True)
 
 
 
@@ -58,6 +58,8 @@ def test_build_structured_response_returns_normal_hit_with_grounded_text() -> No
     assert "最相关政策依据" in response["final_response"]
     assert "原文引用" in response["final_response"]
     assert "对符合条件的养殖场提供贴息贷款支持。" in response["summary"]
+    assert response["session_state"]["purpose"] == "经营周转"
+    assert response["trace"]["session_state"]["existing_loan"] is True
 
 
 

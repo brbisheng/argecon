@@ -93,6 +93,7 @@ def build_structured_response(
         "summary": summary,
         "citations": citations,
         "uncertainty": uncertainty,
+        "session_state": _serialize_session_state(session_state),
         "final_response": final_response,
         "trace": {
             "normalized_query": normalized_query,
@@ -445,6 +446,14 @@ def _serialize_session_state(session_state: SessionState) -> dict[str, Any]:
         "current_region": session_state.current_region,
         "normalized_query": session_state.normalized_query,
         "demand_scenario": session_state.demand_scenario.value,
+        "purpose": session_state.purpose,
+        "amount": session_state.amount,
+        "crop_or_activity": session_state.crop_or_activity,
+        "duration": session_state.duration,
+        "existing_loan": session_state.existing_loan,
+        "cooperative": session_state.cooperative,
+        "guarantor": session_state.guarantor,
+        "collateral": session_state.collateral,
         "updated_at": session_state.updated_at.isoformat() if session_state.updated_at else None,
         "metadata": dict(session_state.metadata),
     }
