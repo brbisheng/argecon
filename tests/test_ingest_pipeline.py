@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from zipfile import ZipFile
+
+from src.common.enums import FileType, ParseStatus
+from src.ingest.dispatcher import build_default_registry, parse_document
+from src.ingest.pipeline import run_ingestion_pipeline
+from src.ingest.scanner import infer_region, scan_directory
+
+DOCX_XML = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'>
+  <w:body>
+    <w:p><w:r><w:t>测试标题</w:t></w:r></w:p>
+    <w:p><w:r><w:t>这里是第一段。</w:t></w:r></w:p>
+    <w:p><w:r><w:t>这里是第二段。</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+"""
+CONTENT_TYPES_XML = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<Types xmlns='http://schemas.openxmlformats.org/package/2006/content-types'>
+  <Default Extension='rels' ContentType='application/vnd.openxmlformats-package.relationships+xml'/>
+  <Default Extension='xml' ContentType='application/xml'/>
+  <Override PartName='/word/document.xml' ContentType='application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml'/>
+</Types>
+"""
+RELS_XML = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'>
+  <Relationship Id='rId1' Type='http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument' Target='word/document.xml'/>
+</Relationships>
+"""
+DOC_RELS_XML = """<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/relationships'/>
+"""
+
+
+def _write_minimal_docx(path: Path) -> None:
+    with ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", CONTENT_TYPES_XML)
+        archive.writestr("_rels/.rels", RELS_XML)
+        archive.writestr("word/document.xml", DOCX_XML)
+        archive.writestr("word/_rels/document.xml.rels", DOC_RELS_XML)
+
+
+def test_scan_directory_infers_regions_from_current_layout(tmp_path: Path) -> None:
+    fj_dir = tmp_path / "fj"
+    bj_dir = tmp_path / "北京农户信贷31" / "北京农户信贷31"
+    fj_dir.mkdir(parents=True)
+    bj_dir.mkdir(parents=True)
+    _write_minimal_docx(fj_dir / "a.docx")
+    _write_minimal_docx(bj_dir / "b.docx")
+
+    scan_result = scan_directory(tmp_path)
+
+    assert len(scan_result.records) == 2
+    assert {record.region for record in scan_result.records} == {"fj", "北京"}
+    assert infer_region(bj_dir / "b.docx", tmp_path) == "北京"
+
+
+def test_dispatcher_parses_docx_without_pipeline_knowing_parser_details(tmp_path: Path) -> None:
+    source = tmp_path / "adbc" / "样例.docx"
+    source.parent.mkdir(parents=True)
+    _write_minimal_docx(source)
+    record = scan_directory(tmp_path).records[0]
+
+    result = parse_document(record, registry=build_default_registry())
+
+    assert result.success is True
+    assert result.document.file_type is FileType.DOCX
+    assert result.document.parse_status is ParseStatus.SUCCESS
+    assert "这里是第一段。" in result.document.raw_text
+
+
+def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "processed"
+    good_dir = input_dir / "fj"
+    bad_dir = input_dir / "北京农户信贷31"
+    good_dir.mkdir(parents=True)
+    bad_dir.mkdir(parents=True)
+
+    _write_minimal_docx(good_dir / "good.docx")
+    (bad_dir / "bad.pdf").write_bytes(b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n")
+
+    result = run_ingestion_pipeline(input_dir=input_dir, output_dir=output_dir)
+
+    manifest_lines = (output_dir / "manifest.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    document_lines = (output_dir / "documents.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    chunk_lines = (output_dir / "chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    report = json.loads((output_dir / "ingestion_report.json").read_text(encoding="utf-8"))
+
+    assert result.report_path == output_dir / "ingestion_report.json"
+    assert len(manifest_lines) == 2
+    assert len(document_lines) == 2
+    assert len(chunk_lines) >= 1
+    assert report["total_files"] == 2
+    assert report["parse_failed"] == 1
+    assert report["parsed_successfully"] == 1
+    assert report["errors"]
