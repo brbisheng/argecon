@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 from pathlib import Path
 from zipfile import ZipFile
 
+from scripts.run_ingestion import run_cli as run_ingestion_cli
 from src.common.enums import FileType, ParseStatus
 from src.common.io_utils import JsonlWriter, append_jsonl_record, write_json, write_jsonl
 from src.ingest.dispatcher import build_default_registry, parse_document
@@ -208,6 +210,38 @@ def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_p
         assert document_index[chunk["doc_id"]]["region"] == chunk["region"]
         assert kb_chunk["chunk_id"] == chunk["chunk_id"]
         assert kb_chunk["source_path"] == chunk["metadata"]["source_path"]
+
+
+def test_run_ingestion_cli_writes_root_level_artifacts_for_default_consumers(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+    output_dir = tmp_path / "processed"
+    source_dir = input_dir / "fj"
+    source_dir.mkdir(parents=True)
+    _write_docx(source_dir / "good.docx")
+
+    for placeholder_name in ("manifest.jsonl", "documents.jsonl", "chunks.jsonl", "kb_chunks.jsonl"):
+        (output_dir / placeholder_name).parent.mkdir(parents=True, exist_ok=True)
+        (output_dir / placeholder_name).write_text("", encoding="utf-8")
+
+    outputs = run_ingestion_cli(
+        Namespace(
+            input_dir=str(input_dir),
+            output_root=str(output_dir),
+            chunk_size=800,
+            chunk_overlap=100,
+            non_recursive=False,
+        )
+    )
+
+    assert outputs["manifest"] == output_dir / "manifest.jsonl"
+    assert outputs["documents"] == output_dir / "documents.jsonl"
+    assert outputs["chunks"] == output_dir / "chunks.jsonl"
+    assert outputs["kb_chunks"] == output_dir / "kb_chunks.jsonl"
+    assert outputs["report"] == output_dir / "ingestion_report.json"
+    assert (output_dir / "kb_chunks.jsonl").read_text(encoding="utf-8").strip()
+    assert not (output_dir / "chunks").exists()
+    assert not (output_dir / "documents").exists()
+    assert not (output_dir / "report").exists()
 
 
 def test_txt_parser_segments_on_blank_lines_and_returns_shared_document_shape(tmp_path: Path) -> None:
