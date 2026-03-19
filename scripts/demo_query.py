@@ -21,11 +21,14 @@ from src.response import build_structured_response
 from src.retrieve.bm25_retriever import BM25Retriever
 
 
+DEFAULT_PROCESSED_DATA_DIR = ROOT / "data" / "processed"
+
+
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="本地演示：加载 chunks 后直接运行问答链路。")
     parser.add_argument("query", help="用户查询")
     parser.add_argument("--session-id", default="demo-session", help="演示 session_id")
-    parser.add_argument("--data-dir", default="data/processed", help="chunk 产物目录")
+    parser.add_argument("--data-dir", default=str(DEFAULT_PROCESSED_DATA_DIR), help="chunk 产物目录；默认会优先发现 chunks/kb_chunks.jsonl，并兼容根目录同步文件")
     parser.add_argument("--chunk-path", default=None, help="显式指定 chunk 文件")
     parser.add_argument("--region", default=None, help="为 demo session 预设地区")
     parser.add_argument("--pretty", action="store_true", help="输出完整 JSON 结果")

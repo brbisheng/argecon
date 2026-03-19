@@ -16,11 +16,11 @@ from src.ingest.report import ReportBuilder, write_report
 from src.ingest.scanner import ScanResult, scan_directory
 
 DEFAULT_OUTPUT_FILES = {
-    "manifest": "manifest.jsonl",
-    "documents": "documents.jsonl",
-    "chunks": "chunks.jsonl",
-    "kb_chunks": "kb_chunks.jsonl",
-    "report": "ingestion_report.json",
+    "manifest": ("manifest.jsonl",),
+    "documents": ("documents", "documents.jsonl"),
+    "chunks": ("chunks", "chunks.jsonl"),
+    "kb_chunks": ("chunks", "kb_chunks.jsonl"),
+    "report": ("report", "ingestion_report.json"),
 }
 
 
@@ -131,13 +131,25 @@ def _build_kb_chunks(chunks: list[ChunkRecord]) -> list[dict[str, object]]:
 def _build_artifacts(output_dir: str | Path) -> PipelineArtifacts:
     root = Path(output_dir)
     root.mkdir(parents=True, exist_ok=True)
+    manifest_path = _resolve_output_path(root, "manifest")
+    documents_path = _resolve_output_path(root, "documents")
+    chunks_path = _resolve_output_path(root, "chunks")
+    kb_chunks_path = _resolve_output_path(root, "kb_chunks")
+    report_path = _resolve_output_path(root, "report")
+    for parent in {manifest_path.parent, documents_path.parent, chunks_path.parent, kb_chunks_path.parent, report_path.parent}:
+        parent.mkdir(parents=True, exist_ok=True)
     return PipelineArtifacts(
-        manifest_path=root / DEFAULT_OUTPUT_FILES["manifest"],
-        documents_path=root / DEFAULT_OUTPUT_FILES["documents"],
-        chunks_path=root / DEFAULT_OUTPUT_FILES["chunks"],
-        kb_chunks_path=root / DEFAULT_OUTPUT_FILES["kb_chunks"],
-        report_path=root / DEFAULT_OUTPUT_FILES["report"],
+        manifest_path=manifest_path,
+        documents_path=documents_path,
+        chunks_path=chunks_path,
+        kb_chunks_path=kb_chunks_path,
+        report_path=report_path,
     )
+
+
+def _resolve_output_path(root: Path, artifact_name: str) -> Path:
+    path_parts = DEFAULT_OUTPUT_FILES[artifact_name]
+    return root.joinpath(*path_parts)
 
 
 def _update_manifest_from_result(record: ManifestRecord, result: ParseResult) -> ManifestRecord:

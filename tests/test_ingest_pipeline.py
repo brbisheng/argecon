@@ -181,10 +181,10 @@ def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_p
     result = run_ingestion_pipeline(input_dir=input_dir, output_dir=output_dir)
 
     manifest_lines = (output_dir / "manifest.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    document_lines = (output_dir / "documents.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    chunk_lines = (output_dir / "chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    kb_chunk_lines = (output_dir / "kb_chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    report = json.loads((output_dir / "ingestion_report.json").read_text(encoding="utf-8"))
+    document_lines = (output_dir / "documents" / "documents.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    chunk_lines = (output_dir / "chunks" / "chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    kb_chunk_lines = (output_dir / "chunks" / "kb_chunks.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    report = json.loads((output_dir / "report" / "ingestion_report.json").read_text(encoding="utf-8"))
 
     documents = [json.loads(line) for line in document_lines]
     chunks = [json.loads(line) for line in chunk_lines]
@@ -192,7 +192,7 @@ def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_p
 
     document_index = {document["doc_id"]: document for document in documents}
 
-    assert result.report_path == output_dir / "ingestion_report.json"
+    assert result.report_path == output_dir / "report" / "ingestion_report.json"
     assert len(manifest_lines) == 2
     assert len(document_lines) == 2
     assert len(chunk_lines) >= 1
@@ -212,7 +212,7 @@ def test_pipeline_writes_artifacts_and_continues_after_single_file_failure(tmp_p
         assert kb_chunk["source_path"] == chunk["metadata"]["source_path"]
 
 
-def test_run_ingestion_cli_writes_root_level_artifacts_for_default_consumers(tmp_path: Path) -> None:
+def test_run_ingestion_cli_writes_staged_and_root_level_artifacts_for_default_consumers(tmp_path: Path) -> None:
     input_dir = tmp_path / "input"
     output_dir = tmp_path / "processed"
     source_dir = input_dir / "fj"
@@ -239,9 +239,13 @@ def test_run_ingestion_cli_writes_root_level_artifacts_for_default_consumers(tmp
     assert outputs["kb_chunks"] == output_dir / "kb_chunks.jsonl"
     assert outputs["report"] == output_dir / "ingestion_report.json"
     assert (output_dir / "kb_chunks.jsonl").read_text(encoding="utf-8").strip()
-    assert not (output_dir / "chunks").exists()
-    assert not (output_dir / "documents").exists()
-    assert not (output_dir / "report").exists()
+    assert (output_dir / "documents" / "documents.jsonl").read_text(encoding="utf-8").strip()
+    assert (output_dir / "chunks" / "chunks.jsonl").read_text(encoding="utf-8").strip()
+    assert (output_dir / "chunks" / "kb_chunks.jsonl").read_text(encoding="utf-8").strip()
+    assert (output_dir / "report" / "ingestion_report.json").read_text(encoding="utf-8").strip()
+    assert (output_dir / "chunks").exists()
+    assert (output_dir / "documents").exists()
+    assert (output_dir / "report").exists()
 
 
 def test_txt_parser_segments_on_blank_lines_and_returns_shared_document_shape(tmp_path: Path) -> None:

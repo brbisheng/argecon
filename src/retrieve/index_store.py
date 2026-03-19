@@ -12,7 +12,7 @@ from typing import Any, Iterable, Sequence
 
 from src.common import ChunkRecord
 
-_DEFAULT_CHUNK_FILES = ("kb_chunks.jsonl", "chunks.jsonl")
+_DEFAULT_CHUNK_FILES = (("chunks", "kb_chunks.jsonl"), ("chunks", "chunks.jsonl"), ("kb_chunks.jsonl",), ("chunks.jsonl",))
 _TOKEN_SPLIT_RE = re.compile(r"[\s\W_]+", re.UNICODE)
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]+")
 
@@ -48,17 +48,17 @@ class ChunkIndexStore:
                 raise FileNotFoundError(f"Chunk file not found: {candidate}")
             return candidate
 
-        for file_name in _DEFAULT_CHUNK_FILES:
-            candidate = self.data_dir / file_name
+        for path_parts in _DEFAULT_CHUNK_FILES:
+            candidate = self.data_dir.joinpath(*path_parts)
             if candidate.exists() and candidate.stat().st_size > 0:
                 return candidate
 
-        for file_name in _DEFAULT_CHUNK_FILES:
-            candidate = self.data_dir / file_name
+        for path_parts in _DEFAULT_CHUNK_FILES:
+            candidate = self.data_dir.joinpath(*path_parts)
             if candidate.exists():
                 return candidate
 
-        searched = ", ".join(str(self.data_dir / name) for name in _DEFAULT_CHUNK_FILES)
+        searched = ", ".join(str(self.data_dir.joinpath(*path_parts)) for path_parts in _DEFAULT_CHUNK_FILES)
         raise FileNotFoundError(f"No chunk artifact found. Looked for: {searched}")
 
     def load_chunks(self, chunk_path: str | Path | None = None) -> list[ChunkRecord]:
