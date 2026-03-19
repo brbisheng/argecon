@@ -16,11 +16,11 @@ from src.retrieve.index_store import ChunkIndexStore, save_chunk_index
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="从 chunks 构建可复用的检索索引。")
-    parser.add_argument("--data-dir", default="data/processed/chunks", help="chunk 目录，默认读取 data/processed/chunks")
+    parser.add_argument("--data-dir", default="data/processed", help="chunk 目录，默认读取 data/processed")
     parser.add_argument("--chunk-path", default=None, help="显式指定 chunk 文件路径")
     parser.add_argument(
         "--output",
-        default="data/processed/report/retrieval_index.json",
+        default="data/processed/retrieval_index.json",
         help="索引输出 JSON 文件路径",
     )
     return parser

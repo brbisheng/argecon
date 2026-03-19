@@ -25,7 +25,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="本地演示：加载 chunks 后直接运行问答链路。")
     parser.add_argument("query", help="用户查询")
     parser.add_argument("--session-id", default="demo-session", help="演示 session_id")
-    parser.add_argument("--data-dir", default="data/processed/chunks", help="chunk 目录")
+    parser.add_argument("--data-dir", default="data/processed", help="chunk 产物目录")
     parser.add_argument("--chunk-path", default=None, help="显式指定 chunk 文件")
     parser.add_argument("--region", default=None, help="为 demo session 预设地区")
     parser.add_argument("--pretty", action="store_true", help="输出完整 JSON 结果")
