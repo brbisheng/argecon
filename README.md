@@ -49,11 +49,58 @@
 4. 所有检索逻辑只面向 chunk 层。
 5. 响应生成必须引用 retrieval / evidence 的结果。
 
-## 快速开始
+## 真正可运行的最小操作顺序
+
+无论你是准备启动 API，还是只想本地跑 demo，都请按下面顺序执行；不要跳过第 2 步的非空检查。
 
 ```bash
-python scripts/run_ingestion.py data/raw
-python scripts/demo_query.py "我想贷款买化肥，额度和期限是什么？"
+python scripts/run_ingestion.py data/raw && \
+python - <<'PY'
+from pathlib import Path
+
+kb_path = Path("data/processed/chunks/kb_chunks.jsonl")
+if not kb_path.exists():
+    raise SystemExit(f"missing knowledge base file: {kb_path}")
+if kb_path.stat().st_size == 0:
+    raise SystemExit(f"knowledge base file is empty: {kb_path}")
+print(f"kb ready: {kb_path}")
+PY
 ```
 
-运行完 ingestion 后，不加额外参数即可直接查询；默认检索会优先读取 `data/processed/chunks/kb_chunks.jsonl`，并兼容根目录同步文件。
+确认 `data/processed/chunks/kb_chunks.jsonl` 非空后，再二选一继续：
+
+### 方式 A：启动 API
+
+```bash
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+
+### 方式 B：运行本地 demo
+
+```bash
+python scripts/demo_query.py \
+  "我想贷款买化肥，额度和期限是什么？"
+```
+
+## 快速开始
+
+如果你想把最小链路完整跑一遍，可以直接复制下面这组命令：
+
+```bash
+python scripts/run_ingestion.py data/raw && \
+python - <<'PY'
+from pathlib import Path
+
+kb_path = Path("data/processed/chunks/kb_chunks.jsonl")
+if not kb_path.exists():
+    raise SystemExit(f"missing knowledge base file: {kb_path}")
+if kb_path.stat().st_size == 0:
+    raise SystemExit(f"knowledge base file is empty: {kb_path}")
+print(f"kb ready: {kb_path}")
+PY
+
+python scripts/demo_query.py \
+  "我想贷款买化肥，额度和期限是什么？"
+```
+
+默认检索会优先读取标准知识库文件 `data/processed/chunks/kb_chunks.jsonl`，并兼容根目录同步文件 `data/processed/kb_chunks.jsonl`。如果该文件缺失或为空，API / demo 都无法命中有效知识，系统只会返回 `no_result` fallback。
