@@ -14,7 +14,7 @@
 
 - `config/`: 稳定配置入口，包括全局设置、同义词、地区映射、停用词。
 - `data/raw/`: 原始输入文件，保留地区目录与源文件形态。
-- `data/processed/`: ingestion 产物与中间件落盘路径，包括 document/chunk 清单与报告。
+- `data/processed/`: ingestion 产物与中间件落盘路径，保留 `documents/`、`chunks/`、`report/` 子目录，并同步根目录兼容文件。
 - `src/common/`: 通用 schema、IO、日志、常量等基础能力。
 - `src/ingest/`: 原始文件扫描、加载、导入流程编排。
 - `src/parsers/`: 按文件格式分发的解析器，实现 raw file -> document。
@@ -32,13 +32,14 @@
 
 ## 处理产物约定
 
-`data/processed/` 预留以下稳定路径，后续实现直接写入这些文件：
+`data/processed/` 采用“分目录 + 根目录兼容文件”的约定：ingestion 的主产物写入子目录，API / demo / retriever 默认也能直接从根目录稳定文件或 `chunks/` 子目录发现数据。
 
 - `manifest.jsonl`
-- `documents.jsonl`
-- `chunks.jsonl`
-- `kb_chunks.jsonl`
-- `ingestion_report.json`
+- `documents/documents.jsonl`
+- `chunks/chunks.jsonl`
+- `chunks/kb_chunks.jsonl`
+- `report/ingestion_report.json`
+- 兼容同步：`documents.jsonl`、`chunks.jsonl`、`kb_chunks.jsonl`、`ingestion_report.json`
 
 ## 推荐开发原则
 
@@ -47,3 +48,12 @@
 3. 从 document 切分出 chunk，并保留可追溯 metadata。
 4. 所有检索逻辑只面向 chunk 层。
 5. 响应生成必须引用 retrieval / evidence 的结果。
+
+## 快速开始
+
+```bash
+python scripts/run_ingestion.py data/raw
+python scripts/demo_query.py "我想贷款买化肥，额度和期限是什么？"
+```
+
+运行完 ingestion 后，不加额外参数即可直接查询；默认检索会优先读取 `data/processed/chunks/kb_chunks.jsonl`，并兼容根目录同步文件。

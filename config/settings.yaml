@@ -6,10 +6,14 @@ paths:
   raw_data_dir: data/raw
   processed_data_dir: data/processed
   manifest_path: data/processed/manifest.jsonl
-  documents_path: data/processed/documents.jsonl
-  chunks_path: data/processed/chunks.jsonl
-  kb_chunks_path: data/processed/kb_chunks.jsonl
-  ingestion_report_path: data/processed/ingestion_report.json
+  documents_path: data/processed/documents/documents.jsonl
+  chunks_path: data/processed/chunks/chunks.jsonl
+  kb_chunks_path: data/processed/chunks/kb_chunks.jsonl
+  ingestion_report_path: data/processed/report/ingestion_report.json
+  promoted_documents_path: data/processed/documents.jsonl
+  promoted_chunks_path: data/processed/chunks.jsonl
+  promoted_kb_chunks_path: data/processed/kb_chunks.jsonl
+  promoted_ingestion_report_path: data/processed/ingestion_report.json
 
 ingestion:
   supported_formats:

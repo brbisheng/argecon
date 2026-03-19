@@ -17,6 +17,9 @@ from src.normalize import QueryNormalizer
 from src.response import build_structured_response
 from src.retrieve.bm25_retriever import BM25Retriever
 
+DEFAULT_PROCESSED_DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "processed"
+
+
 PIPELINE_STEPS = [
     "query_normalizer",
     "retriever",
@@ -140,7 +143,7 @@ def create_app(
     pipeline = QueryPipeline(
         normalizer=QueryNormalizer(),
         session_store=session_store or DEFAULT_SESSION_STORE,
-        data_dir=Path(data_dir) if data_dir else None,
+        data_dir=Path(data_dir) if data_dir else DEFAULT_PROCESSED_DATA_DIR,
         chunk_path=Path(chunk_path) if chunk_path else None,
     )
     pipeline.load_kb()
@@ -228,4 +231,4 @@ def _dev_endpoints_enabled() -> bool:
 app = create_app()
 
 
-__all__ = ["PIPELINE_STEPS", "QueryPipeline", "app", "create_app"]
+__all__ = ["DEFAULT_PROCESSED_DATA_DIR", "PIPELINE_STEPS", "QueryPipeline", "app", "create_app"]

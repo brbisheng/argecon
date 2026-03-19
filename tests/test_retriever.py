@@ -52,19 +52,19 @@ def _write_jsonl(path: Path, records: list[dict]) -> None:
 
 
 def test_index_store_prefers_kb_chunks_when_present(tmp_path: Path) -> None:
-    _write_jsonl(tmp_path / "chunks.jsonl", CANONICAL_CHUNKS)
-    _write_jsonl(tmp_path / "kb_chunks.jsonl", KB_CHUNKS)
+    _write_jsonl(tmp_path / "chunks" / "chunks.jsonl", CANONICAL_CHUNKS)
+    _write_jsonl(tmp_path / "chunks" / "kb_chunks.jsonl", KB_CHUNKS)
 
     index = load_chunk_index(data_dir=tmp_path)
 
     assert [chunk.chunk_id for chunk in index.chunks] == ["doc-1:0", "doc-2:0"]
-    assert index.metadata["source_path"].endswith("kb_chunks.jsonl")
+    assert index.metadata["source_path"].endswith("chunks/kb_chunks.jsonl")
     assert "贴息贷款" in index.tokenized_chunks[0]
 
 
 
 def test_bm25_retriever_returns_ranked_retrieved_chunks(tmp_path: Path) -> None:
-    _write_jsonl(tmp_path / "kb_chunks.jsonl", KB_CHUNKS)
+    _write_jsonl(tmp_path / "chunks" / "kb_chunks.jsonl", KB_CHUNKS)
     retriever = BM25Retriever.from_chunk_store(data_dir=str(tmp_path))
 
     results = retriever.retrieve("生猪 贴息贷款", top_k=2)
@@ -82,7 +82,7 @@ def test_bm25_retriever_returns_ranked_retrieved_chunks(tmp_path: Path) -> None:
 
 
 def test_tfidf_retriever_supports_region_filter_and_fallback(tmp_path: Path) -> None:
-    _write_jsonl(tmp_path / "kb_chunks.jsonl", KB_CHUNKS)
+    _write_jsonl(tmp_path / "chunks" / "kb_chunks.jsonl", KB_CHUNKS)
     retriever = TfidfRetriever.from_chunk_store(data_dir=str(tmp_path))
 
     filtered_results = retriever.retrieve("补贴 合作社", top_k=2, region="anhui")
